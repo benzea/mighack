@@ -59,12 +59,14 @@ my_window_set_screen (GObject *object, const gchar *display_str)
   if (!display)
     {
       g_warning ("Failed to open display \"%s\"", cycle_displays[next_cycle_offset]);
-      g_strfreev (cycle_displays);
-      return;
+      goto out_free;
     }
 
   screen = gdk_display_get_default_screen (display);
   gtk_window_set_screen (GTK_WINDOW (object), screen);
+
+ out_free:
+  g_strfreev (cycle_displays);
 }
 
 static void
