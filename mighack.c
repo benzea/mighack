@@ -1,3 +1,11 @@
+/*
+ * GTK+ window migration hack preload library
+ *
+ * Copyright 2007       Benjamin Berg <benjamin@sipsolutions.net>
+ * Copyright 2007       Johannes Berg <johannes@sipsolutions.net>
+ *
+ * GPLv2
+ */
 
 #define _GNU_SOURCE
 #include <dlfcn.h>
