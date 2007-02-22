@@ -32,7 +32,7 @@ my_window_set_screen (GObject *object, const gchar *display_str)
         next_cycle_offset = cycle_offset+1;
       cycle_offset++;
     }
-  
+
   /* cycle_offset contains the number of displays in the list ... */
   if (next_cycle_offset >= cycle_offset)
     next_cycle_offset = 0;
@@ -42,27 +42,27 @@ my_window_set_screen (GObject *object, const gchar *display_str)
   while (item)
     {
       display = (GdkDisplay*) item->data;
-    
+
       if (g_str_equal (cycle_displays[next_cycle_offset], gdk_display_get_name (display)))
         {
           break;
         }
-    
+
       item = g_slist_next (item);
     }
   g_slist_free (start);
-  
+
   /* Try to open the display if we did not do this earlier. */
   if (!item)
     display = gdk_display_open (cycle_displays[next_cycle_offset]);
-  
+
   if (!display)
     {
       g_warning ("Failed to open display \"%s\"", cycle_displays[next_cycle_offset]);
       g_strfreev (cycle_displays);
       return;
     }
-  
+
   screen = gdk_display_get_default_screen (display);
   gtk_window_set_screen (GTK_WINDOW (object), screen);
 }
@@ -71,7 +71,7 @@ static void
 modify_class (GType type)
 {
   GtkWindowClass *class;
-  
+
   /* We _need_ to ref the class so that it exists. */
   class = g_type_class_ref (type);
   class->_gtk_reserved4 = (void*) my_window_set_screen;
@@ -93,12 +93,12 @@ gtk_window_get_type (void)
 {
   static GType result = 0;
   GType (*orig_gtk_window_get_type) (void) = NULL;
-  
+
   if (!result && orig_gtk_window_get_type == NULL) {
     orig_gtk_window_get_type = dlsym (RTLD_NEXT, "gtk_window_get_type");
-    
+
     result = orig_gtk_window_get_type ();
-    
+
     modify_class (result);
   }
   return result;
