@@ -15,6 +15,7 @@
 #define PROP_SCREEN_MIGRATION 12345
 
 static guint my_signal = 0;
+static GSList *winlist = NULL;
 
 /*
  * result must point to a buffer long enough to hold
@@ -114,10 +115,34 @@ my_window_set_screen (GObject *object, const gchar *display_str)
     }
 
   screen = gdk_display_get_default_screen (display);
-  gtk_window_set_screen (GTK_WINDOW (object), screen);
+  g_slist_foreach (winlist, (GFunc) gtk_window_set_screen, screen);
 
  out_free:
   g_strfreev (cycle_displays);
+}
+
+static GObject* (*orig_constructor)(GType type, guint nprop, GObjectConstructParam *prop);
+static void (*orig_dispose)(GObject *obj);
+static void (*orig_finalize)(GObject *obj);
+
+static GObject* construct(GType type, guint nprop, GObjectConstructParam *prop)
+{
+  GtkWindow *res;
+  res = GTK_WINDOW(orig_constructor(type, nprop, prop));
+  winlist = g_slist_prepend(winlist, res);
+  return G_OBJECT(res);
+}
+
+static void finalize(GObject *obj)
+{
+  winlist = g_slist_remove (winlist, obj);
+  orig_finalize(obj);
+}
+
+static void dispose(GObject *obj)
+{
+  winlist = g_slist_remove (winlist, obj);
+  orig_dispose(obj);
 }
 
 static void
@@ -127,6 +152,12 @@ modify_class (GType type)
 
   /* We _need_ to ref the class so that it exists. */
   class = g_type_class_ref (type);
+  orig_constructor = class->parent_class.parent_class.parent_class.parent_class.parent_class.constructor;
+  class->parent_class.parent_class.parent_class.parent_class.parent_class.constructor = construct;
+  orig_dispose = class->parent_class.parent_class.parent_class.parent_class.parent_class.dispose;
+  class->parent_class.parent_class.parent_class.parent_class.parent_class.dispose = dispose;
+  orig_finalize = class->parent_class.parent_class.parent_class.parent_class.parent_class.finalize;
+  class->parent_class.parent_class.parent_class.parent_class.parent_class.finalize = finalize;
   class->_gtk_reserved4 = (void*) my_window_set_screen;
 
   my_signal =
