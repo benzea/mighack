@@ -70,7 +70,7 @@ my_window_set_screen (GObject *object, const gchar *display_str)
   tmpstr = gdk_display_get_name (gdk_screen_get_display (gtk_window_get_screen (GTK_WINDOW (object))));
   sanitize_display_name (tmpstr, cur_display);
 
-  cycle_displays = g_strsplit (display_str, "#", 0);
+  cycle_displays = g_strsplit_set (display_str, "#,;", 0);
 
   /* now try to find the display we are on */
   for (i = 0; cycle_displays[i]; i++)
