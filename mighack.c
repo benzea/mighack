@@ -12,7 +12,7 @@ my_window_set_screen (GObject *object, const gchar *display_str)
 {
   gchar **cycle_displays;
   gint cycle_offset = 0;
-  gint next_cycle_offset = -1;
+  gint next_cycle_offset = 0;
   const gchar *cur_display;
   GSList *item, *start;
   GdkDisplay *display;
@@ -33,9 +33,6 @@ my_window_set_screen (GObject *object, const gchar *display_str)
       cycle_offset++;
     }
   
-  /* start at the beginning if the current one is not found. */
-  if (next_cycle_offset == -1)
-    next_cycle_offset = 0;
   /* cycle_offset contains the number of displays in the list ... */
   if (next_cycle_offset >= cycle_offset)
     next_cycle_offset = 0;
