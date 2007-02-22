@@ -8,6 +8,7 @@
  */
 
 #define _GNU_SOURCE
+#include <string.h>
 #include <dlfcn.h>
 #include <gtk/gtk.h>
 
@@ -15,61 +16,100 @@
 
 static guint my_signal = 0;
 
+/*
+ * result must point to a buffer long enough to hold
+ * the whole dname plus at least two characters more!
+ */
+static void sanitize_display_name(const char *dname, char *result)
+{
+  const char *res = dname;
+  char *tmp;
+
+  g_assert(dname);
+
+  /* split off leading "localhost" */
+  if (g_str_has_prefix (res, "localhost"))
+    {
+      res += 9;
+    }
+
+  tmp = g_strrstr (res, ":");
+  /* something's wrong with it, but hey... */
+  if (!tmp)
+    {
+      strcpy (result, res);
+      return;
+    }
+
+  /* if it has a trailing .X then return */
+  if (strstr (tmp, "."))
+    {
+      strcpy (result, res);
+      return;
+    }
+
+  strcpy (result, res);
+  /* add trailing .0 */
+  strcat(result, ".0");
+}
+
 static void
 my_window_set_screen (GObject *object, const gchar *display_str)
 {
   gchar **cycle_displays;
-  gint cycle_offset = 0;
-  gint next_cycle_offset = 0;
-  const gchar *cur_display;
-  GSList *item, *start;
+  const gchar *tmpstr;
+  GSList *item, *list;
   GdkDisplay *display = NULL;
   GdkScreen *screen;
+  gchar cur_display[1024], buf[1024], switch_to[1024];
+  int i;
 
   if (display_str == NULL)
     return;
 
-  cur_display = gdk_display_get_name (gdk_screen_get_display (gtk_window_get_screen (GTK_WINDOW (object))));
+  tmpstr = gdk_display_get_name (gdk_screen_get_display (gtk_window_get_screen (GTK_WINDOW (object))));
+  sanitize_display_name (tmpstr, cur_display);
 
   cycle_displays = g_strsplit (display_str, "#", 0);
 
   /* now try to find the display we are on */
-  while (cycle_displays[cycle_offset] != NULL)
+  for (i = 0; cycle_displays[i]; i++)
     {
-      if (g_str_equal (cycle_displays[cycle_offset], cur_display))
-        next_cycle_offset = cycle_offset+1;
-      cycle_offset++;
+      sanitize_display_name (cycle_displays[i], buf);
+      if (g_str_equal (buf, cur_display))
+        {
+          /* if i+1 is the end then we need to wrap around */
+          tmpstr = cycle_displays[i+1];
+          if (!tmpstr)
+            tmpstr = cycle_displays[0];
+          sanitize_display_name(tmpstr, switch_to);
+        }
     }
 
-  /* the current one was last, go back to first */
-  if (next_cycle_offset >= cycle_offset)
-    next_cycle_offset = 0;
-
-  start = gdk_display_manager_list_displays (gdk_display_manager_get ());
-  item = start;
-  while (item)
+  list = gdk_display_manager_list_displays (gdk_display_manager_get ());
+  for (item = list; item; item = g_slist_next (item))
     {
       GdkDisplay *tmp = (GdkDisplay*) item->data;
 
-      if (g_str_equal (cycle_displays[next_cycle_offset], gdk_display_get_name (tmp)))
+      sanitize_display_name (gdk_display_get_name (tmp), buf);
+
+      if (g_str_equal (buf, switch_to))
         {
           display = tmp;
           break;
         }
-
-      item = g_slist_next (item);
     }
-  g_slist_free (start);
+  g_slist_free (list);
 
-  /* Try to open the display if we did not do this earlier. */
+  /* Try to open the display if we don't have it open already */
   if (!display)
     {
-      display = gdk_display_open (cycle_displays[next_cycle_offset]);
+      display = gdk_display_open (switch_to);
     }
 
   if (!display)
     {
-      g_warning ("Failed to open display \"%s\"", cycle_displays[next_cycle_offset]);
+      g_warning ("Failed to open display \"%s\"", switch_to);
       goto out_free;
     }
 
